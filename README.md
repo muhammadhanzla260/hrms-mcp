@@ -7,14 +7,15 @@ you actually worked on that day.
 ## Tools
 | Tool | What it does |
 |---|---|
-| `start_day(planned_tasks, is_wfh)` | Punch in (`POST /api/v1/duty/start`), sends planned tasks as `start_task` |
+| `start_day(planned_tasks, is_wfh)` | Punch in (`POST /duty/start`), sends planned tasks as `start_task` |
 | `log_task(description)` | Add a task to today's local journal (`~/.hrms-mcp/tasks.jsonl`) |
 | `list_tasks` | Show today's tasks |
-| `end_day(notes?)` | Punch out; sends journal tasks newline-joined as `end_task` |
+| `end_day(notes?, dry_run?)` | Punch out via `/duty/end/id/{open duty id}` (found from `timeline`); sends logged tasks as `end_task` |
+| `timeline` | Raw `/duty/timeline` records for today |
 
 ## Setup
 1. `python -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt`
-2. `cp .env.example .env` and fill it in. Needed from DevTools -> Network: the login, punch-in and
+2. `cp .env.example .env` and fill it in. Set HRMS_TOKEN (Bearer token) or the login path+credentials.
    punch-out URL paths, and how login returns auth (token in JSON, or cookie). Alternatively set
    `HRMS_TOKEN` directly.
 3. Register in Claude Code: `claude mcp add hrms -- /path/to/.venv/bin/python -m hrms_mcp.server`

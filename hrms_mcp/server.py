@@ -1,4 +1,5 @@
 """MCP server: explicit start/end-day punches plus a task journal."""
+import json
 import os
 from pathlib import Path
 
@@ -57,14 +58,29 @@ def start_day(planned_tasks: list[str], is_wfh: bool = True) -> str:
 
 
 @mcp.tool()
-def end_day(notes: str = "") -> str:
+def timeline() -> str:
+    """Raw duty timeline for today (what the dashboard shows)."""
+    try:
+        return json.dumps(_c().timeline(), indent=2)
+    except HRMSError as e:
+        return f"Failed: {e}"
+
+
+@mcp.tool()
+def end_day(notes: str = "", dry_run: bool = False) -> str:
     """Punch out, submitting today's logged tasks. Only call when the user
-    explicitly says to end their day. Show the task list to the user first."""
+    explicitly says to end their day. With dry_run=True, show what would be
+    sent without punching out."""
     tasks = journal.tasks_for()
     if not tasks:
         return "No tasks logged today; log tasks first or confirm with the user."
     try:
-        return f"Ended with {len(tasks)} task(s): {_c().end_day(tasks, notes)}"
+        c = _c()
+        duty_id = c.open_duty_id(c.timeline())
+        if dry_run:
+            path = f"/duty/end/id/{duty_id}" if duty_id else "/duty/end"
+            return f"POST {path}\n{json.dumps(c.end_payload(tasks, notes), indent=2)}"
+        return f"Ended with {len(tasks)} task(s): {c.end_day(tasks, notes, duty_id)}"
     except HRMSError as e:
         return f"Failed: {e}"
 

@@ -29,8 +29,8 @@ class HRMSClient:
         self.http.headers["Accept"] = "application/json"
         self._authed = False
 
-    def _url(self, path_env: str) -> str:
-        return self.base + "/" + _env(path_env).lstrip("/")
+    def _url(self, path: str) -> str:
+        return self.base + "/" + path.lstrip("/")
 
     def _check(self, resp: requests.Response) -> dict:
         try:
@@ -47,7 +47,7 @@ class HRMSClient:
             self.http.headers["Authorization"] = f"Bearer {token}"
         else:
             resp = self.http.post(
-                self._url("HRMS_LOGIN_PATH"),
+                self._url(_env("HRMS_LOGIN_PATH")),
                 json={"email": _env("HRMS_EMAIL"), "password": _env("HRMS_PASSWORD")},
                 timeout=30,
             )
@@ -61,19 +61,37 @@ class HRMSClient:
                     raise HRMSError(f"No token at '{field}' and no session cookie.")
         self._authed = True
 
-    def _post(self, path_env: str, payload: dict) -> dict:
+    def _post(self, path: str, payload: dict) -> dict:
         if not self._authed:
             self.login()
-        resp = self.http.post(self._url(path_env), json=payload, timeout=30)
+        resp = self.http.post(self._url(path), json=payload, timeout=30)
         if resp.status_code == 401:  # token expired: re-login once
             self._authed = False
             self.login()
-            resp = self.http.post(self._url(path_env), json=payload, timeout=30)
+            resp = self.http.post(self._url(path), json=payload, timeout=30)
         return self._check(resp)
+
+    def timeline(self) -> list[dict]:
+        body = self._post("/duty/timeline", {"gmt_offset": _env("HRMS_GMT_OFFSET")})
+        data = body.get("data", [])
+        return data if isinstance(data, list) else []
+
+    def open_duty_id(self, records: list[dict]) -> str | None:
+        """Id of today's still-open duty, or None if it can't be determined.
+
+        The timeline's field names are unverified; we only trust a record that
+        has an id and no end-like value, and only when exactly one matches.
+        """
+        end_keys = ("end_time", "end_at", "ended_at", "check_out", "end_date_time")
+        open_ = [
+            r for r in records
+            if r.get("id") and not any(r.get(k) for k in end_keys)
+        ]
+        return str(open_[0]["id"]) if len(open_) == 1 else None
 
     def start_day(self, tasks: list[str], is_wfh: bool = True) -> dict:
         return self._post(
-            "HRMS_START_PATH",
+            "/duty/start",
             {
                 "is_wfh": is_wfh,
                 "start_task": "\n".join(tasks),
@@ -83,14 +101,15 @@ class HRMSClient:
             },
         )
 
-    def end_day(self, tasks: list[str], notes: str = "") -> dict:
-        return self._post(
-            "HRMS_END_PATH",
-            {
-                "end_task": "\n".join(tasks),
-                "end_notes": notes,
-                "end_device_location": None,
-                "end_gmt_offset": _env("HRMS_GMT_OFFSET"),
-                "end_location_id": _env("HRMS_LOCATION_ID"),
-            },
-        )
+    def end_payload(self, tasks: list[str], notes: str = "") -> dict:
+        return {
+            "end_task": "\n".join(tasks),
+            "end_notes": notes,
+            "end_device_location": None,
+            "end_gmt_offset": _env("HRMS_GMT_OFFSET"),
+            "end_location_id": _env("HRMS_LOCATION_ID"),
+        }
+
+    def end_day(self, tasks: list[str], notes: str = "", duty_id: str | None = None) -> dict:
+        path = f"/duty/end/id/{duty_id}" if duty_id else "/duty/end"
+        return self._post(path, self.end_payload(tasks, notes))
