@@ -7,7 +7,7 @@ you actually worked on that day.
 ## Tools
 | Tool | What it does |
 |---|---|
-| `start_day` | Punch in (`POST` start endpoint, body `{gmt_offset}`) |
+| `start_day(planned_tasks, is_wfh)` | Punch in (`POST /api/v1/duty/start`), sends planned tasks as `start_task` |
 | `log_task(description)` | Add a task to today's local journal (`~/.hrms-mcp/tasks.jsonl`) |
 | `list_tasks` | Show today's tasks |
 | `end_day(notes?)` | Punch out; sends journal tasks newline-joined as `end_task` |

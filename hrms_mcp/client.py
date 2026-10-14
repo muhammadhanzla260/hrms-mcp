@@ -71,8 +71,17 @@ class HRMSClient:
             resp = self.http.post(self._url(path_env), json=payload, timeout=30)
         return self._check(resp)
 
-    def start_day(self) -> dict:
-        return self._post("HRMS_START_PATH", {"gmt_offset": _env("HRMS_GMT_OFFSET")})
+    def start_day(self, tasks: list[str], is_wfh: bool = True) -> dict:
+        return self._post(
+            "HRMS_START_PATH",
+            {
+                "is_wfh": is_wfh,
+                "start_task": "\n".join(tasks),
+                "start_device_location": None,
+                "start_gmt_offset": _env("HRMS_GMT_OFFSET"),
+                "start_location_id": _env("HRMS_LOCATION_ID"),
+            },
+        )
 
     def end_day(self, tasks: list[str], notes: str = "") -> dict:
         return self._post(

@@ -45,10 +45,13 @@ def list_tasks() -> list[str]:
 
 
 @mcp.tool()
-def start_day() -> str:
-    """Punch in. Only call when the user explicitly says to start their day."""
+def start_day(planned_tasks: list[str], is_wfh: bool = True) -> str:
+    """Punch in with today's planned tasks. Only call when the user explicitly
+    says to start their day; ask for the planned tasks if not given."""
+    for t in planned_tasks:
+        journal.add_task(t)
     try:
-        return f"Started: {_c().start_day()}"
+        return f"Started: {_c().start_day(planned_tasks, is_wfh)}"
     except HRMSError as e:
         return f"Failed: {e}"
 

@@ -32,3 +32,13 @@ def test_end_day_payload():
     sent = json.loads(responses.calls[1].request.body)
     assert sent["end_task"] == "A\nB" and sent["end_location_id"] == "8"
     assert responses.calls[1].request.headers["Authorization"] == "Bearer t"
+
+
+@responses.activate
+def test_start_day_payload():
+    responses.post("https://hrms.test/login", json={"success": True, "data": {"token": "t"}})
+    responses.post("https://hrms.test/start", json={"success": True})
+    HRMSClient().start_day(["A", "B"])
+    sent = json.loads(responses.calls[1].request.body)
+    assert sent == {"is_wfh": True, "start_task": "A\nB", "start_device_location": None,
+                    "start_gmt_offset": "+18000", "start_location_id": "8"}
